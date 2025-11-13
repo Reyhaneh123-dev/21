@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>آزمایشگاه مجموعه‌ها — مجموعه A</title>
+<style>
+  body{font-family:'Vazir', Tahoma, sans-serif;background:#f7fbff;margin:12px}
+  .card{background:#fff;padding:18px;border-radius:10px;max-width:880px;margin:12px auto;box-shadow:0 8px 24px rgba(0,0,0,0.06)}
+  h1{color:#0077cc;margin:0 0 8px}
+  label{display:block;margin-top:10px;font-weight:600}
+  select,input,button,textarea{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-top:6px;box-sizing:border-box;font-family:inherit}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  button{background:#0077cc;color:#fff;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
+  button.ghost{background:#fff;color:#0077cc;border:1px solid #0077cc}
+  .big{background:#ff9800;padding:12px 14px;font-weight:700}
+  .box{margin-top:12px;padding:10px;border-radius:8px;background:#eef6ff;direction:ltr}
+  .hidden{display:none}
+  .danger{color:#b00020}
+  svg text{font-size:13px;text-anchor:middle}
+  .center{text-align:center}
+  .muted{color:#666;font-size:13px;margin-top:8px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>آزمایشگاه مجموعه‌ها</h1>
+    <h2>مجموعه A :</h2>
+
+    <label>۱) عضو کدام مجموعهٔ شناخته‌شده است؟</label>
+    <select id="baseA">
+      <option value="">-- انتخاب کنید --</option>
+      <option value="N">ℕ — اعداد طبیعی</option>
+      <option value="W">𝕎 — اعداد حسابی (شامل ۰)</option>
+      <option value="Z">ℤ — اعداد صحیح</option>
+      <option value="Q">ℚ — اعداد گویا</option>
+      <option value="R">ℝ — اعداد حقیقی</option>
+      <option value="irr">اعداد گنگ</option>
+    </select>
+
+    <div id="autoFormula" class="box">A هنوز ساخته نشده است.</div>
+
+    <label>۲) در صورت وجود شرط، آن را به زبان کلامی بنویس:</label>
+    <input id="condA" placeholder="مثلاً: کوچکتر از 10 یا بین 1 و 5 یا زوج">
+
+    <div class="row">
+      <button id="buildA">ساخت مجموعه (پیش‌نمایش)</button>
+      <button id="showMathA" class="ghost">نمایش نماد ریاضی</button>
+      <button id="showMembersA" class="ghost">نمایش اعضا</button>
+      <button id="showVennA" class="ghost">نمایش نمودار ون</button>
+      <button id="showAxisA" class="ghost">نمایش مجموعه روی محور</button>
+    </div>
+
+    <div id="mathA" class="box hidden"></div>
+    <div id="membersA" class="box hidden"></div>
+    <div id="vennA" class="box hidden center"></div>
+    <div id="axisA" class="box hidden"></div>
+
+    <div class="muted">اگر مجموعه نامتناهی یا از نوع ℚ یا ℝ یا اعداد گنگ باشد، نمایش اعضا/ون/محور به صورت فهرست عددی امکان‌پذیر نیست و پیغام مناسب نمایش داده می‌شود.</div>
+
+    <div class="row" style="margin-top:14px">
+      <button id="goOps" class="big">انجام عملیات ریاضی →</button>
+      <button id="saveLocal" class="ghost">ذخیره در مرورگر (موقت)</button>
+    </div>
+  </div>
+
+<script>
+/* تبدیل ارقام به فارسی */
+function persian(n){ return String(n).replace(/[0-9]/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d]); }
+
+/* نمونه‌سازی پایه‌ها */
+const baseSamples = {
+  N: (limit=20)=>Array.from({length:limit},(_,i)=>i+1),
+  W: (limit=20)=>Array.from({length:limit},(_,i)=>i),
+  Z: (limit=21)=>{ const a=[]; for(let i=-10;i<=10;i++) a.push(i); return a; },
+  Q: ()=>null, R: ()=>null, irr: ()=>null
+};
+
+/* تبدیل شرط فارسی به شیٔ شرط (الگوهای رایج) */
+function parsePersianCondition(t){
+  const s = (t||'').trim().toLowerCase();
+  if(!s) return {ok:false};
+  let m;
+  if(m=s.match(/بین\s*(-?\d+)\s*(?:و|تا)\s*(-?\d+)/)){ const a=Number(m[1]), b=Number(m[2]); return {ok:true,predicate:x=>x>=Math.min(a,b)&&x<=Math.max(a,b),symbolic:`${Math.min(a,b)} \\le x \\le ${Math.max(a,b)}`,meta:{type:'interval',a:Math.min(a,b),b:Math.max(a,b),inclusiveBoth:true}};}
+  if(m=s.match(/کوچکتر\s*یا\s*مساوی\s*(-?\d+)/)){const n=Number(m[1]);return {ok:true,predicate:x=>x<=n,symbolic:`x \\le ${n}`,meta:{type:'lte',n, inclusive:true}};}
+  if(m=s.match(/بزرگتر\s*یا\s*مساوی\s*(-?\d+)/)){const n=Number(m[1]);return {ok:true,predicate:x=>x>=n,symbolic:`x \\ge ${n}`,meta:{type:'gte',n, inclusive:true}};}
+  if(m=s.match(/کوچکتر\s*(-?\d+)/)){const n=Number(m[1]);return {ok:true,predicate:x=>x< n,symbolic:`x < ${n}`,meta:{type:'lt',n,inclusive:false}};}
+  if(m=s.match(/بزرگتر\s*(-?\d+)/)){const n=Number(m[1]);return {ok:true,predicate:x=>x> n,symbolic:`x > ${n}`,meta:{type:'gt',n,inclusive:false}};}
+  if(/\bزوج\b/.test(s)) return {ok:true,predicate:x=>Number.isInteger(x)&&x%2===0,symbolic:`x \\text{ زوج}`,meta:{type:'parity',parity:'even'}};
+  if(/\bفرد\b/.test(s)) return {ok:true,predicate:x=>Number.isInteger(x)&&Math.abs(x%2)===1,symbolic:`x \\text{ فرد}`,meta:{type:'parity',parity:'odd'}};
+  if(m=s.match(/تقسیم\s*بر\s*(\d+)/)){const k=Number(m[1]);return {ok:true,predicate:x=>Number.isInteger(x)&&x%k===0,symbolic:`x \\equiv 0 \\ (mod\\ ${k})`,meta:{type:'div',k}};}
+  if(m=s.match(/^(-?\d+)$/)){ const n=Number(m[1]); return {ok:true,predicate:x=>x===n,symbolic:`x = ${n}`,meta:{type:'equal',n}};}
+  return {ok:false};
+}
+
+/* وضعیت A */
+let A = { base:null, condText:'', symbolic:'', members:null, meta:null };
+
+/* المان‌ها */
+const baseA = document.getElementById('baseA');
+const condA = document.getElementById('condA');
+const buildA = document.getElementById('buildA');
+const autoFormula = document.getElementById('autoFormula');
+const mathA = document.getElementById('mathA');
+const membersA = document.getElementById('membersA');
+const vennA = document.getElementById('vennA');
+const axisA = document.getElementById('axisA');
+const showMathA = document.getElementById('showMathA');
+const showMembersA = document.getElementById('showMembersA');
+const showVennA = document.getElementById('showVennA');
+const showAxisA = document.getElementById('showAxisA');
+const goOps = document.getElementById('goOps');
+const saveLocal = document.getElementById('saveLocal');
+
+/* ساخت A */
+function createA(){
+  const base = baseA.value;
+  const condText = condA.value.trim();
+  if(!base){ alert('ابتدا یک مجموعه شناخته‌شده انتخاب کن'); return; }
+  A.base = base; A.condText = condText;
+  const parsed = condText ? parsePersianCondition(condText) : {ok:false};
+  // symbolic
+  if(base==='irr') A.symbolic = condText ? `A = { x ∈ اعداد گنگ | ${parsed.symbolic || condText} }` : `A = { x ∈ اعداد گنگ }`;
+  else A.symbolic = condText ? `A = { x ∈ ${base} | ${parsed.symbolic || condText} }` : `A = { x ∈ ${base} }`;
+  // members sample for N/W/Z
+  if(['N','W','Z'].includes(base)){
+    let sample = baseSamples;
+    if(parsed.ok) A.members = sample.filter(parsed.predicate);
+    else A.members = sample;
+    A.meta = parsed.meta||null;
+  } else {
+    A.members = null;
+    A.meta = parsed.meta||null;
+  }
+  autoFormula.innerHTML = `<strong>فرمول (خلاصه):</strong> <div style="margin-top:6px;direction:ltr">${A.symbolic}</div>`;
+  mathA.classList.add('hidden'); membersA.classList.add('hidden'); vennA.classList.add('hidden'); axisA.classList.add('hidden');
+}
+
+/* دکمه‌ها */
+buildA.addEventListener('click', ()=>{ createA(); });
+showMathA.addEventListener('click', ()=>{
+  if(!A.symbolic){ alert('ابتدا مجموعه A را بساز'); return; }
+  mathA.classList.remove('hidden'); mathA.innerHTML = `<pre>${A.symbolic}</pre>`;
+});
+showMembersA.addEventListener('click', ()=>{
+  membersA.classList.remove('hidden');
+  if(!A.members){ membersA.innerHTML = `<div class="danger">به دلیل اینکه عضو اعداد ${A.base==='Q'?'گویا':(A.base==='R'?'حقیقی':'گنگ')} است، نمایش اعضا امکان‌پذیر نیست.</div>`; return; }
+  membersA.innerHTML = `<div><strong>A = </strong>{ ${A.members.map(persian).join(', ')} }</div>`;
+});
+showVennA.addEventListener('click', ()=>{
+  vennA.classList.remove('hidden');
+  if(!A.members || A.members.length===0){ vennA.innerHTML = `<div class="danger">امکان نمایش نمودار ون برای این مجموعه وجود ندارد (نامتناهی یا غیرقابل‌شمارش).</div>`; return; }
+  // رسم دایره و نوشتن اعضا دور محیط
+  const members = A.members.slice(0,40);
+  const cx=160, cy=90, r=70;
+  let texts='';
+  const step = 360/members.length;
+  members.forEach((v,i)=>{
+    const ang = (step*i - 90) * Math.PI/180;
+    const x = cx + r*Math.cos(ang), y = cy + r*Math.sin(ang);
+    texts += `<text x="${x}" y="${y+4}">${persian(v)}</text>`;
+  });
+  vennA.innerHTML = `<svg width="320" height="200"><circle cx="${cx}" cy="${cy}" r="${r}" stroke="#0077cc" fill="rgba(0,119,204,0.12)"/>${texts}</svg>`;
+});
+showAxisA.addEventListener('click', ()=>{
+  axisA.classList.remove('hidden');
+  if(!A.members || A.members.length===0){ axisA.innerHTML = `<div class="danger">نمایش محور برای این مجموعه (${A.base==='Q'?'گویا':(A.base==='R'?'حقیقی':'گنگ')}) امکان‌پذیر نیست.</div>`; return; }
+  // برای N/W/Z: نقاط روی اعداد و کادر از اول تا آخر، اگر انتها باز باشد نشان دهیم
+  if(['N','W','Z'].includes(A.base)){
+    const first = A.members[0], last = A.members[A.members.length-1];
+    const meta = A.meta || {};
+    let leftOpen=false, rightOpen=false;
+    if(meta.type==='lt' && meta.n===last) rightOpen=true;
+    if(meta.type==='gt' && meta.n===first) leftOpen=true;
+    // رسم نقاط
+    let marks='';
+    const span = last - first || 1;
+    A.members.forEach(v=>{
+      const pos = ((v-first)/span)*90 + 5;
+      marks += `<div style="position:absolute;left:${pos}%;top:6px;text-align:center;">●<div style="font-size:12px">${persian(v)}</div></div>`;
+    });
+    const leftArrow = leftOpen ? '◂' : '';
+    const rightArrow = rightOpen ? '▸' : '';
+    axisA.innerHTML = `<div style="position:relative;height:80px;border-top:2px solid #333;padding-top:6px;">
+        ${marks}
+        <div style="position:absolute;left:5%;right:5%;top:44px;text-align:center;color:#444">${leftArrow} <span style="display:inline-block;border:1px solid #aaa;padding:6px;border-radius:6px;background:#fff">از ${persian(first)} تا ${persian(last)}</span> ${rightArrow}</div>
+      </div>`;
+    return;
+  }
+  // برای R: اگر شرط یک عدد بود (equal) دایره پر، اگر نقطه مرزی باز دایره خالی و بین آنها خط
+  const meta = A.meta || {};
+  if(meta.type==='equal'){
+    const n = meta.n;
+    axisA.innerHTML = `<div style="height:60px;border-top:2px solid #333;position:relative;">
+      <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);font-size:18px;">●</div>
+      <div style="position:absolute;left:50%;top:24px;transform:translateX(-50%);font-size:12px">${persian(n)}</div>
+    </div>`;
+    return;
+  }
+  if(meta.type==='interval'){
+    const a=meta.a,b=meta.b;
+    const leftChar = meta.inclusiveLeft? '●' : '○';
+    const rightChar = meta.inclusiveRight? '●' : '○';
+    axisA.innerHTML = `<div style="height:70px;border-top:2px solid #333;position:relative;">
+      <div style="position:absolute;left:20%;top:0">${leftChar}<div style="font-size:12px">${persian(a)}</div></div>
+      <div style="position:absolute;left:80%;top:0">${rightChar}<div style="font-size:12px">${persian(b)}</div></div>
+      <div style="position:absolute;left:20%;right:20%;top:18px;border-top:2px solid #333"></div>
+    </div>`;
+    return;
+  }
+  // fallback:
+  axisA.innerHTML = `<div class="muted">نمایش محوری در این حالت به شکل نمونه‌ای نمایش داده می‌شود.</div>`;
+});
+
+/* ذخیره محلی و رفتن به عملیات */
+saveLocal.addEventListener('click', ()=>{
+  localStorage.setItem('A_data', JSON.stringify(A));
+  alert('مجموعهٔ A در مرورگر ذخیره شد (موقت). حالا می‌توانید به صفحه عملیات بروید.');
+});
+goOps.addEventListener('click', ()=>{
+  if(!A.base){ alert('ابتدا مجموعه A را بساز.'); return; }
+  localStorage.setItem('A_data', JSON.stringify(A));
+  window.location.href = 'operations.html';
+});
+
+/* بارگذاری اولیه: نمونه پیش‌فرض */
+(function init(){ baseA.value='N'; condA.value=''; }):void;
+</script>
+</body>
+</html>
