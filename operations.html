@@ -1,274 +1,106 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>آزمایشگاه مجموعه‌ها — عملیات</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>عملیات روی مجموعه‌ها — نمایشگاه</title>
 <style>
-  body{font-family:'Vazir', Tahoma, sans-serif;background:#f7fbff;margin:10px}
-  .card{background:#fff;padding:16px;border-radius:10px;max-width:980px;margin:10px auto;box-shadow:0 8px 24px rgba(0,0,0,0.06)}
-  h1{color:#0077cc}
-  label{display:block;margin-top:10px;font-weight:600}
-  select,input,button,textarea{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-top:6px;box-sizing:border-box;font-family:inherit}
-  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-  button{background:#0077cc;color:#fff;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
-  button.ghost{background:#fff;color:#0077cc;border:1px solid #0077cc}
-  .big{background:#ff9800;padding:12px 14px;font-weight:700}
-  .box{margin-top:10px;padding:10px;border-radius:8px;background:#eef6ff;direction:ltr}
-  .hidden{display:none}
-  .danger{color:#b00020}
-  svg text{font-size:13px;text-anchor:middle}
-  .center{text-align:center}
-  .muted{color:#666;font-size:13px;margin-top:8px}
-  .kbd{background:#f1f1f1;padding:2px 6px;border-radius:4px;border:1px solid #e6e6e6}
+body{font-family:'Tahoma',sans-serif; background:#fffafc; color:#111; padding:20px;}
+h2{color:#7b1fa2;}
+.card{background:#fff;border-radius:12px;padding:14px;box-shadow:0 10px 28px rgba(12,12,12,0.06);margin-bottom:12px;}
+select,input,button{padding:8px;border-radius:6px;border:1px solid #eee;font-size:15px;}
+button{background:#7b1fa2;color:#fff;border:none;cursor:pointer;}
+.small-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px;}
+.result-box{background:#fbf7ff;padding:10px;border-radius:8px;margin-top:10px;}
+#vennCanvas,#axisCanvas{width:100%; height:200px; background:#fff; margin-top:10px;}
 </style>
 </head>
 <body>
-  <div class="card">
-    <h1>آزمایشگاه مجموعه‌ها — عملیات</h1>
 
-    <div>
-      <label>مجموعه A (ثابت — از صفحه قبل):</label>
-      <div id="displayA" class="box">در حال بارگذاری A...</div>
-    </div>
+<h2>عملیات روی مجموعه‌ها</h2>
 
-    <hr>
+<div class="card">
+  <label>انتخاب عمل</label>
+  <select id="operation">
+    <option value="">انتخاب کنید...</option>
+    <option value="union">اجتماع (A ∪ B)</option>
+    <option value="intersection">اشتراک (A ∩ B)</option>
+    <option value="difference">تفاضل (A − B)</option>
+    <option value="subset">آیا A زیرمجموعهٔ B است؟ (A ⊂ B)</option>
+  </select>
 
-    <label>روش ساخت مجموعه B:</label>
-    <select id="methodB">
-      <option value="">-- انتخاب کنید --</option>
-      <option value="symbolic">نماد ریاضی</option>
-      <option value="members">نوشتن اعضا</option>
-      <option value="known">انتخاب از مجموعه‌های شناخته‌شده</option>
-    </select>
-
-    <div id="areaB" class="box">پس از انتخاب روش، گزینه‌ها نمایش داده می‌شوند.</div>
-
-    <label style="margin-top:10px">انتخاب عملیات بین A و B:</label>
-    <select id="op">
-      <option value="union">اجتماع (∪)</option>
-      <option value="intersection">اشتراک (∩)</option>
-      <option value="difference">تفاضل (−)</option>
-      <option value="subset">زیرمجموعه (⊆)</option>
-      <option value="member">عضو بودن (∈)</option>
-    </select>
-
-    <div class="row" style="margin-top:12px">
-      <button id="compute">محاسبه و تولید C</button>
-      <button id="showMathC" class="ghost">نمایش نماد ریاضی C</button>
-      <button id="showMembersC" class="ghost">نمایش اعضای C</button>
-      <button id="showVennC" class="ghost">نمایش ون برای C</button>
-      <button id="showAxisC" class="ghost">نمایش محور برای C</button>
-    </div>
-
-    <div id="resultC" class="box">نتیجهٔ C اینجا نمایش داده می‌شود.</div>
-    <div id="membersC" class="box hidden"></div>
-    <div id="vennC" class="box hidden center"></div>
-    <div id="axisC" class="box hidden"></div>
-
+  <div class="small-btns">
+    <button onclick="computeOperation('union')">∪</button>
+    <button onclick="computeOperation('intersection')">∩</button>
+    <button onclick="computeOperation('difference')">−</button>
+    <button onclick="computeOperation('subset')">⊂</button>
   </div>
 
+  <div id="resultBox" class="result-box"></div>
+  <div id="explanationBox" class="result-box"></div>
+
+  <button onclick="showVenn()">نمایش نمودار ون</button>
+  <canvas id="vennCanvas"></canvas>
+  <button onclick="showAxis()">نمایش محور</button>
+  <canvas id="axisCanvas"></canvas>
+</div>
+
 <script>
-/* کمکی‌ها */
-function persian(s){ return String(s).replace(/[0-9]/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d]); }
-function parseExplicit(txt){ if(!txt) return []; const s=txt.replace(/[{}\\s]/g,''); if(!s) return []; const parts=s.split(','); const out=new Set(); parts.forEach(p=>{ if(/^(-?\\d+)-(-?\\d+)$/.test(p)){ const m=p.match(/^(-?\\d+)-(-?\\d+)$/); const a=parseInt(m[1]), b=parseInt(m[2]); for(let i=Math.min(a,b); i<=Math.max(a,b); i++) out.add(i);} else if(/^(-?\\d+)(\\.\\d+)?$/.test(p)){ out.add(Number(p)); } }); return Array.from(out).sort((a,b)=>a-b); }
-
-/* parsePersianCondition same as sets.html */
-function parsePersianCondition(t){
-  const s=(t||'').trim().toLowerCase();
-  if(!s) return {ok:false};
-  let m;
-  if(m=s.match(/بین\s*(-?\d+)\s*(?:و|تا)\s*(-?\d+)/)){ const a=Number(m[1]), b=Number(m[2]); return {ok:true,predicate:x=>x>=Math.min(a,b)&&x<=Math.max(a,b),symbolic:`${Math.min(a,b)} \\le x \\le ${Math.max(a,b)}`,meta:{type:'interval',a:Math.min(a,b),b:Math.max(a,b),inclusiveBoth:true}};}
-  if(m=s.match(/کوچکتر\s*یا\s*مساوی\s*(-?\d+)/)){const n=Number(m[1]);return {ok:true,predicate:x=>x<=n,symbolic:`x \\le ${n}`,meta:{type:'lte',n,inclusive:true}};}
-  if(m=s.match(/بزرگتر\s*یا\s*مساوی\s*(-?\d+)/)){const n=Number(m[1]);return {ok:true,predicate:x=>x>=n,symbolic:`x \\ge ${n}`,meta:{type:'gte',n,inclusive:true}};}
-  if(m=s.match(/کوچکتر\s*(-?\d+)/)){const n=Number(m[1]);return {ok:true,predicate:x=>x< n,symbolic:`x < ${n}`,meta:{type:'lt',n,inclusive:false}};}
-  if(m=s.match(/بزرگتر\s*(-?\d+)/)){const n=Number(m[1]);return {ok:true,predicate:x=>x> n,symbolic:`x > ${n}`,meta:{type:'gt',n,inclusive:false}};}
-  if(/\bزوج\b/.test(s)) return {ok:true,predicate:x=>Number.isInteger(x)&&x%2===0,symbolic:`x \\text{ زوج}`,meta:{type:'parity',parity:'even'}};
-  if(/\bفرد\b/.test(s)) return {ok:true,predicate:x=>Number.isInteger(x)&&Math.abs(x%2)===1,symbolic:`x \\text{ فرد}`,meta:{type:'parity',parity:'odd'}};
-  if(m=s.match(/تقسیم\s*بر\s*(\d+)/)){const k=Number(m[1]);return {ok:true,predicate:x=>Number.isInteger(x)&&x%k===0,symbolic:`x \\equiv 0 \\ (mod\\ ${k})`,meta:{type:'div',k}};}
-  if(m=s.match(/^(-?\d+)$/)){ const n=Number(m[1]); return {ok:true,predicate:x=>x===n,symbolic:`x = ${n}`,meta:{type:'equal',n}};}
-  return {ok:false};
+// خواندن مجموعه A از localStorage
+let setA = {type:'unknown', members:[]};
+const exprA = localStorage.getItem("setA_expr");
+if(exprA){
+  const nums = exprA.match(/-?\d+/g);
+  if(nums) setA = {type:'finite', members:Array.from(new Set(nums.map(Number)))};
 }
 
-/* base samples */
-const baseSamples = { N:(l=40)=>Array.from({length:l},(_,i)=>i+1), W:(l=40)=>Array.from({length:l},(_,i)=>i), Z:()=>{const a=[];for(let i=-20;i<=20;i++)a.push(i);return a;}, Q:()=>null, R:()=>null, irr:()=>null };
+// خواندن B نمونه
+let setB = {type:'finite', members:[1,2,3,4]}; // نمونه ساده
 
-/* بارگیری A از localStorage */
-let A = JSON.parse(localStorage.getItem('A_data')||'null');
-if(!A) {
-  document.getElementById('displayA').innerHTML = '<div class="danger">مجموعهٔ A در مرورگر یافت نشد. لطفاً ابتدا صفحهٔ تعریف A (sets.html) را باز کرده و A را بساز و سپس این صفحه را دوباره باز کن.</div>';
-} else {
-  document.getElementById('displayA').innerHTML = `<div><strong>A =</strong> <span style="direction:ltr">${A.symbolic ? A.symbolic : (A.members ? ('{ ' + A.members.slice(0,20).join(', ') + (A.members.length>20? ', ...':'') + ' }') : '{ ... }')}</span></div>`;
+function computeOperation(op){
+  const resultBox = document.getElementById("resultBox");
+  const explBox = document.getElementById("explanationBox");
+  resultBox.innerHTML=""; explBox.innerHTML="";
+  let C=[];
+  if(op==='union') C=[...new Set([...setA.members,...setB.members])].sort((a,b)=>a-b);
+  if(op==='intersection') C=setA.members.filter(x=>setB.members.includes(x)).sort((a,b)=>a-b);
+  if(op==='difference') C=setA.members.filter(x=>!setB.members.includes(x)).sort((a,b)=>a-b);
+  if(op==='subset'){ C=isSubset(setA.members,setB.members); resultBox.innerHTML="A ⊂ B ? : "+(C?"بله":"خیر"); return;}
+  resultBox.innerHTML="نتیجه: { "+C.join(', ')+" }";
+  explBox.innerHTML="توضیح: این مجموعه نتیجه عمل "+op+" روی A و B است.";
 }
 
-/* المان‌های صفحه */
-const methodB = document.getElementById('methodB'), areaB = document.getElementById('areaB');
-const op = document.getElementById('op');
-const compute = document.getElementById('compute');
-const resultC = document.getElementById('resultC'), membersC = document.getElementById('membersC'), vennC = document.getElementById('vennC'), axisC = document.getElementById('axisC');
-const showMathC = document.getElementById('showMathC'), showMembersC = document.getElementById('showMembersC'), showVennC = document.getElementById('showVennC'), showAxisC = document.getElementById('showAxisC');
+function isSubset(A,B){return A.every(x=>B.includes(x));}
 
-let B = { mode:null, base:null, condText:'', members:null, symbolic:null, meta:null };
-let C = { symbolic:null, members:null };
+// نمودار ون برای عملیات
+function showVenn(){
+  const canvas = document.getElementById("vennCanvas");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  let cx=canvas.width/2, cy=canvas.height/2, r=60;
+  // دو دایره
+  ctx.globalAlpha=0.3;
+  ctx.fillStyle="blue"; ctx.beginPath(); ctx.arc(cx-40,cy,r,0,2*Math.PI); ctx.fill();
+  ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(cx+40,cy,r,0,2*Math.PI); ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.strokeStyle="black";
+  ctx.lineWidth=2;
+  ctx.stroke();
+}
 
-/* نمایش فرم B بر اساس روش انتخابی */
-methodB.addEventListener('change', ()=>{
-  const m = methodB.value; B = { mode:m, base:null, condText:'', members:null, symbolic:null, meta:null };
-  areaB.innerHTML = '';
-  if(m==='symbolic'){
-    areaB.innerHTML = `<label>عضو کدام مجموعه شناخته‌شده است؟</label>
-      <select id="baseB"><option value="">-- انتخاب --</option><option value="N">ℕ</option><option value="W">𝕎</option><option value="Z">ℤ</option><option value="Q">ℚ</option><option value="R">ℝ</option><option value="irr">اعداد گنگ</option></select>
-      <label style="margin-top:6px">شرط (فارسی) در صورت وجود:</label><input id="condB" placeholder="مثلاً: کوچکتر از 6 یا زوج">
-      <div style="margin-top:8px"><button id="previewB">پیش‌نمایش B</button></div><div id="previewAreaB" style="margin-top:8px"></div>`;
-    document.getElementById('previewB').addEventListener('click', ()=>{
-      const base=document.getElementById('baseB').value, cond=document.getElementById('condB').value.trim();
-      if(!base){ alert('ابتدا پایهٔ B را انتخاب کن'); return;}
-      const parsed = cond ? parsePersianCondition(cond) : {ok:false};
-      B.base=base; B.condText=cond; B.meta=parsed.meta||null;
-      B.symbolic = cond ? `B = { x ∈ ${base} | ${parsed.symbolic || cond} }` : `B = { x ∈ ${base} }`;
-      if(; B.members = parsed.ok ? sample.filter(parsed.predicate) : sample; }
-      else B.members = null;
-      document.getElementById('previewAreaB').innerHTML = `<div><strong>پیش‌نمایش:</strong><div style="direction:ltr;margin-top:6px">${B.symbolic}</div></div>`;
-    });
-  } else if(m==='members'){
-    areaB.innerHTML = `<label>اعضای B را داخل آکولاد یا با کاما وارد کن (مثلاً: 1,2,3 یا 2-6)</label>
-      <input id="manualB" placeholder="مثلاً: 1,2,5 یا 2-6"><div style="margin-top:8px"><button id="previewB2">پیش‌نمایش B</button></div><div id="previewAreaB2" style="margin-top:8px"></div>`;
-    document.getElementById('previewB2').addEventListener('click', ()=>{
-      const txt=document.getElementById('manualB').value.trim();
-      const arr=parseExplicit(txt);
-      B.mode='members'; B.members=arr; B.base=null; B.symbolic = `B = { ${arr.join(', ')} }`;
-      document.getElementById('previewAreaB2').innerHTML = `<div><strong>پیش‌نمایش B:</strong> { ${arr.map(persian).join(', ')} }</div>`;
-    });
-  } else if(m==='known'){
-    areaB.innerHTML = `<label>مجموعهٔ شناخته‌شدهٔ B را انتخاب کن:</label>
-      <select id="knownB"><option value="">-- انتخاب --</option><option value="N">ℕ</option><option value="W">𝕎</option><option value="Z">ℤ</option><option value="Q">ℚ</option><option value="R">ℝ</option><option value="irr">اعداد گنگ</option></select>
-      <div style="margin-top:8px"><button id="previewB3">پیش‌نمایش B</button></div><div id="previewAreaB3" style="margin-top:8px"></div>`;
-    document.getElementById('previewB3').addEventListener('click', ()=>{
-      const v=document.getElementById('knownB').value;
-      if(!v){ alert('انتخاب کن'); return; }
-      B.mode='known'; B.base=v; B.members =  : null;
-      B.symbolic = v==='irr' ? 'B = { اعداد گنگ }' : `B = { x ∈ ${v} }`;
-      document.getElementById('previewAreaB3').innerHTML = `<div><strong>پیش‌نمایش:</strong><div style="direction:ltr;margin-top:6px">${B.symbolic}</div></div>`;
-    });
-  }
-});
-
-/* محاسبهٔ C با رعایت قوانین شمارشی */
-compute.addEventListener('click', ()=>{
-  resultC.innerHTML=''; membersC.classList.add('hidden'); vennC.classList.add('hidden'); axisC.classList.add('hidden');
-  if(!A){ resultC.innerHTML=`<div class="danger">مجموعهٔ A وجود ندارد. ابتدا بخش A را بساز (sets.html).</div>`; return; }
-  if(!methodB.value){ alert('روش ساخت B را انتخاب کن'); return; }
-  // تعیین B.members در صورت امکان
-  let Bm = B.members;
-  if(B.mode==='symbolic' && B.base && ['N','W','Z'].includes(B.base) && B.members) Bm = B.members;
-  if(B.mode==='known' && ['N','W','Z'].includes(B.base)) Bm = B.members;
-  // A.enumerable?
-  const A_enum = Array.isArray(A.members) && A.members.length>0;
-  const B_enum = Array.isArray(Bm) && Bm.length>0;
-
-  const opv = op.value;
-
-  // عضویت: از کاربر عدد می‌پرسیم
-  if(opv==='member'){
-    const raw = prompt('یک عدد برای بررسی وارد کنید (مثلاً 3):','3');
-    if(raw===null){ resultC.innerHTML='<div class="muted">عملیات کنسل شد.</div>'; return; }
-    const val = Number(raw);
-    if(isNaN(val)){ resultC.innerHTML='<div class="danger">عدد معتبر وارد نشده است.</div>'; return; }
-    // بررسی عضو بودن در B: اگر B_enum داریم استفاده می‌کنیم؛ یا اگر B symbolic با شرط داریم تلاش می‌کنیم
-    let inB = false;
-    if(Bm) inB = Bm.includes(val);
-    else if(B.mode==='symbolic' && B.condText){
-      const parsed = parsePersianCondition(B.condText||B.condText);
-      if(parsed.ok) inB = !!parsed.predicate(val);
-      else { resultC.innerHTML='<div class="danger">نمی‌توان شرط B را ارزیابی کرد.</div>'; return; }
-    } else {
-      resultC.innerHTML='<div class="danger">قادر به تعیین عضو بودن نیستم (B قابل‌شمارش نیست).</div>'; return;
-    }
-    resultC.innerHTML = `<div><strong>نتیجهٔ نمادین:</strong> ${persian(val)} ∈ B = ${inB?'<strong>درست</strong>':'<strong>نادرست</strong>'}</div>`;
-    C.symbolic = `${persian(val)} ∈ B = ${inB}`;
-    C.members = null;
-    return;
-  }
-
-  // زیرمجموعه: اگر A و B شمارش‌پذیر باشن یا شرط B موجود باشه
-  if(opv==='subset'){
-    if(!A_enum){ resultC.innerHTML = '<div class="danger">قابل نمایش نیست: مجموعهٔ A قابل‌شمارش نیست.</div>'; return; }
-    if(Bm){
-      const allIn = A.members.every(x=>Bm.includes(x));
-      resultC.innerHTML = `<div><strong>نتیجه:</strong> A ⊆ B → ${allIn?'<strong>درست</strong>':'<strong>نادرست</strong>'}</div>`;
-      C.symbolic = `A ⊆ B = ${allIn}`; C.members = null; return;
-    } else if(B.mode==='symbolic' && B.condText){
-      const parsed = parsePersianCondition(B.condText);
-      if(!parsed.ok){ resultC.innerHTML = '<div class="danger">قادر به تعیین نیستم (شرط B نامفهوم).</div>'; return; }
-      const allIn = A.members.every(x=>parsed.predicate(x));
-      resultC.innerHTML = `<div><strong>نتیجه:</strong> A ⊆ B → ${allIn?'<strong>درست</strong>':'<strong>نادرست</strong>'}</div>`;
-      C.symbolic = `A ⊆ B = ${allIn}`; C.members=null; return;
-    } else {
-      resultC.innerHTML = '<div class="danger">قادر به تعیین نیستم: B قابل‌شمارش نیست.</div>'; return;
-    }
-  }
-
-  // برای عملیات مجموعه‌ای (اجتماع/اشتراک/تفاضل)
-  // اگر هر دو شمارش‌پذیر: مستقیم محاسبه کنیم
-  if(A_enum && B_enum){
-    const sA=A.members, sB=Bm;
-    const setB=new Set(sB);
-    const inter = sA.filter(x=>setB.has(x));
-    const uni = Array.from(new Set([...sA,...sB])).sort((a,b)=>a-b);
-    const diff = sA.filter(x=>!setB.has(x));
-    let out=[];
-    if(opv==='intersection') out = inter;
-    if(opv==='union') out = uni;
-    if(opv==='difference') out = diff;
-    C.members = out; C.symbolic = opv==='intersection'?'A ∩ B':opv==='union'?'A ∪ B':'A - B';
-    resultC.innerHTML = `<div><strong>نماد:</strong> C = ${C.symbolic}</div>`;
-    membersC.classList.remove('hidden'); membersC.innerHTML = `<div>{ ${C.members.map(persian).join(', ')} }</div>`;
-    return;
-  }
-
-  // اگر A شمارش‌پذیر و B نماد با شرط داریم: می‌توانیم روی عناصر A اعمال کنیم
-  if(A_enum && !B_enum && B.mode==='symbolic' && B.condText){
-    const parsed = parsePersianCondition(B.condText);
-    if(!parsed.ok){ resultC.innerHTML = '<div class="danger">قادر به محاسبه نیستم (شرط B نامفهوم).</div>'; return; }
-    let setB_fromA = A.members.filter(x=>parsed.predicate(x)); // intersection of A and B inferred
-    let out=[];
-    if(opv==='intersection') out = setB_fromA;
-    if(opv==='union') out = Array.from(new Set([...A.members, ...setB_fromA])).sort((a,b)=>a-b);
-    if(opv==='difference') out = A.members.filter(x=>!setB_fromA.includes(x));
-    C.members = out; C.symbolic = opv==='intersection'?'A ∩ B':opv==='union'?'A ∪ B':'A - B';
-    resultC.innerHTML = `<div><strong>نماد:</strong> C = ${C.symbolic}</div>`;
-    membersC.classList.remove('hidden'); membersC.innerHTML = `<div>{ ${out.map(persian).join(', ')} }</div>`;
-    return;
-  }
-
-  // اگر هر دو نامتناهی یا غیرقابل‌شمارش یا شرایط پیچیده
-  resultC.innerHTML = '<div class="danger">قابل نمایش نیست — یکی از مجموعه‌ها یا هر دو نامتناهی/غیرقابل‌شمارش است (مثل ℚ یا ℝ یا اعداد گنگ).</div>';
-});
-
-/* نمایش نماد/اعضا/ون/محور C */
-showMathC.addEventListener('click', ()=>{
-  if(!C.symbolic) { alert('ابتدا محاسبه کن'); return; }
-  resultC.innerHTML = `<div><strong>نماد ریاضی C:</strong><div style="direction:ltr;margin-top:6px">${C.symbolic}</div></div>`;
-});
-showMembersC.addEventListener('click', ()=>{
-  if(!C.members){ membersC.classList.remove('hidden'); membersC.innerHTML = `<div class="danger">نمایش اعضا ممکن نیست (نامتناهی یا غیرقابل‌شمارش).</div>`; return; }
-  membersC.classList.remove('hidden'); membersC.innerHTML = `<div>{ ${C.members.map(persian).join(', ')} }</div>`;
-});
-showVennC.addEventListener('click', ()=>{
-  vennC.classList.remove('hidden'); vennC.innerHTML='';
-  if(!C.members || C.members.length===0){ vennC.innerHTML = `<div class="danger">امکان نمایش ون برای این مجموعه وجود ندارد.</div>`; return; }
-  const members=C.members.slice(0,40); const cx=150,cy=90,r=70;
-  let texts=''; const step=360/members.length;
-  members.forEach((v,i)=>{ const ang=(step*i-90)*Math.PI/180; const x=cx+r*Math.cos(ang), y=cy+r*Math.sin(ang); texts+=`<text x="${x}" y="${y+4}">${persian(v)}</text>`; });
-  vennC.innerHTML = `<svg width="320" height="200"><circle cx="${cx}" cy="${cy}" r="${r}" stroke="#0077cc" fill="rgba(0,119,204,0.12)"/>${texts}</svg>`;
-});
-showAxisC.addEventListener('click', ()=>{
-  axisC.classList.remove('hidden'); axisC.innerHTML='';
-  if(!C.members || C.members.length===0){ axisC.innerHTML = `<div class="danger">نمایش محور برای این مجموعه ممکن نیست.</div>`; return; }
-  const arr=C.members.slice().sort((a,b)=>a-b); const first=arr[0], last=arr[arr.length-1]; let marks='';
-  const span = last-first||1;
-  arr.forEach(v=>{ const pos = ((v-first)/span)*90 +5; marks+=`<div style="position:absolute;left:${pos}%;top:6px;text-align:center;">●<div style="font-size:12px">${persian(v)}</div></div>`; });
-  axisC.innerHTML = `<div style="position:relative;height:80px;border-top:2px solid #333;padding-top:6px;">${marks}<div style="position:absolute;left:5%;right:5%;top:40px;text-align:center;color:#444"><span style="display:inline-block;border:1px solid #aaa;padding:6px;border-radius:6px;background:#fff">از ${persian(first)} تا ${persian(last)}</span></div></div>`;
-});
+// محور عددی
+function showAxis(){
+  const canvas=document.getElementById("axisCanvas");
+  const ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  let startX=50,endX=canvas.width-50,y=100;
+  ctx.beginPath(); ctx.moveTo(startX,y); ctx.lineTo(endX,y); ctx.strokeStyle="black"; ctx.lineWidth=2; ctx.stroke();
+  const ticks=[-3,-2,-1,0,1,2,3]; const spacing=(endX-startX)/6;
+  ticks.forEach((num,i)=>{
+    ctx.beginPath(); ctx.arc(startX+i*spacing,y,6,0,2*Math.PI); ctx.fillStyle="black"; ctx.fill();
+    ctx.font="14px Tahoma"; ctx.fillText(num,startX+i*spacing-5,y+25);
+  });
+}
 </script>
 </body>
 </html>
